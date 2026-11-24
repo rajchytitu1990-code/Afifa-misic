@@ -30,13 +30,14 @@ jobs:
           printf "8933bad161af4178b1185d1a37fbf41ea5269c55\nd56f5187479451eabf01fb78af6dfcb131a6481e\n24333f8a63b6825ea9c5514f83c2829b004d1fee\n" > "$ANDROID_HOME/licenses/android-sdk-license"
           sdkmanager --sdk_root="$ANDROID_HOME" --install "platform-tools" "platforms;android-34" "build-tools;34.0.0" || true
 
-      - name: Build Android WebView APK
+      - name: Create Android Project
         run: |
           rm -rf android-apk
           mkdir -p android-apk/app/src/main/java/com/afifa/music
           mkdir -p android-apk/app/src/main/res/layout
           mkdir -p android-apk/app/src/main/res/values
           mkdir -p android-apk/app/src/main/assets
+          mkdir -p android-apk/gradle/wrapper
 
           if [ -f "index.html" ]; then
             cp index.html android-apk/app/src/main/assets/index.html
@@ -46,6 +47,21 @@ jobs:
             echo "index.html not found in repository root"
             exit 1
           fi
+
+          cat << 'EOF' > android-apk/gradle/wrapper/gradle-wrapper.properties
+          distributionBase=GRADLE_USER_HOME
+          distributionPath=wrapper/dists
+          distributionUrl=https\://services.gradle.org/distributions/gradle-8.5-bin.zip
+          networkTimeout=10000
+          validateDistributionUrl=true
+          zipStoreBase=GRADLE_USER_HOME
+          zipStorePath=wrapper/dists
+          EOF
+
+          cat << 'EOF' > android-apk/gradlew
+          #!/usr/bin/env sh
+          exec java -jar "$APP_HOME/gradle/wrapper/gradle-wrapper.jar" "$@"
+          EOF
 
           cat << 'EOF' > android-apk/settings.gradle
           rootProject.name = "AfifaMusic"
@@ -200,11 +216,11 @@ jobs:
           </manifest>
           EOF
 
-          gradle wrapper --gradle-version 8.5 --distribution-type all
-
       - name: Build APK
         working-directory: android-apk
-        run: ./gradlew assembleDebug --no-daemon
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
